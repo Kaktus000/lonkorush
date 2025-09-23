@@ -22,9 +22,19 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
-    "bundle": {
-      "icon": ["icons/icon.png"]
-    }
+    "targets": [
+      "deb",
+      "appimage",
+      "rpm",
+      "msi",
+      "nsis",
+      "dmg",
+      "app",
+      "apk",
+      "ios"
+    ],
+    "icon": [
+      "icons/icon.png"
+    ]
   }
 }
