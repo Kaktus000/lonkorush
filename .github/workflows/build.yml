@@ -1,0 +1,46 @@
+name: Build Tauri App
+
+on:
+  push:
+    tags:
+      - "v*"   # nur beim Erstellen eines Tags wie v0.1.0
+  workflow_dispatch: # manueller Start
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies (Linux only)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y \
+          libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev \
+          librsvg2-dev patchelf
+
+      - name: Install Node.js (for frontend if needed)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0.0" --locked
+
+      - name: Build Tauri App
+        run: cargo tauri build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-build-${{ matrix.platform }}
+          path: src-tauri/target/release/bundle/
