@@ -1,46 +1,103 @@
-name: Build Tauri App
+name: Build Lonkorush Client
 
 on:
   push:
-    tags:
-      - "v*"   # nur beim Erstellen eines Tags wie v0.1.0
-  workflow_dispatch: # manueller Start
+    branches:
+      - main
+  pull_request:
 
 jobs:
   build:
     strategy:
-      fail-fast: false
       matrix:
-        platform: [ubuntu-latest, windows-latest, macos-latest]
-
-    runs-on: ${{ matrix.platform }}
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout sources
         uses: actions/checkout@v4
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install dependencies (Linux only)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y \
-          libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev \
-          librsvg2-dev patchelf
-
-      - name: Install Node.js (for frontend if needed)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0" --locked
 
-      - name: Build Tauri App
+      - name: Build app
         run: cargo tauri build
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-build-${{ matrix.platform }}
+          name: lonkorush-client-${{ matrix.os }}
           path: src-tauri/target/release/bundle/
+
+  # Android Build
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Java & Android SDK
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: default
+          arch: x86_64
+          script: echo "Android SDK ready"
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0.0" --locked
+
+      - name: Init Android
+        run: cargo tauri android init
+
+      - name: Build Android APK
+        run: cargo tauri android build
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lonkorush-client-android
+          path: src-tauri/gen/android/app/build/outputs/apk/
+
+  # iOS Build
+  ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0.0" --locked
+
+      - name: Init iOS
+        run: cargo tauri ios init
+
+      - name: Build iOS App
+        run: cargo tauri ios build
+
+      - name: Upload iOS App
+        uses: actions/upload-artifact@v4
+        with:
+          name: lonkorush-client-ios
+          path: src-tauri/gen/ios/
