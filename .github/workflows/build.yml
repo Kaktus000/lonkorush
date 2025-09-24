@@ -32,11 +32,12 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             pkg-config \
-            imagemagick
+            imagemagick \
+            icnsutils
 
       - name: Install system dependencies (macOS only)
         if: matrix.os == 'macos-latest'
-        run: brew install imagemagick
+        run: brew install imagemagick icnsutils
 
       - name: Install system dependencies (Windows only)
         if: matrix.os == 'windows-latest'
@@ -51,9 +52,28 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
 
-      - name: Ensure icon is valid PNG32
+      - name: Generate App Icons
         run: |
-          magick src-tauri/icons/icon.png -define png:format=png32 src-tauri/icons/icon.png
+          mkdir -p src-tauri/icons
+
+          # Ensure base icon is valid PNG32, resize to 1024x1024
+          magick src-tauri/icons/icon.png -resize 1024x1024 -define png:format=png32 src-tauri/icons/icon.png
+
+          # Linux PNGs in all common sizes
+          for size in 16 32 48 64 128 256 512 1024; do
+            magick src-tauri/icons/icon.png -resize ${size}x${size} -define png:format=png32 src-tauri/icons/icon-${size}.png
+          done
+
+          # Windows ICO
+          magick src-tauri/icons/icon-16.png src-tauri/icons/icon-32.png src-tauri/icons/icon-48.png src-tauri/icons/icon-64.png src-tauri/icons/icon-128.png src-tauri/icons/icon-256.png src-tauri/icons/icon.ico
+
+          # macOS ICNS
+          mkdir -p src-tauri/icons/macos.iconset
+          for size in 16 32 128 256 512 1024; do
+            magick src-tauri/icons/icon.png -resize ${size}x${size} src-tauri/icons/macos.iconset/icon_${size}x${size}.png
+            magick src-tauri/icons/icon.png -resize $((size*2))x$((size*2)) src-tauri/icons/macos.iconset/icon_${size}x${size}@2x.png
+          done
+          iconutil -c icns src-tauri/icons/macos.iconset -o src-tauri/icons/icon.icns
 
       - name: Build Tauri App
         run: cargo tauri build
