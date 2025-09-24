@@ -30,7 +30,20 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
+            imagemagick \
             patchelf
+
+      - name: Install dependencies (macOS only)
+        if: matrix.os == 'macos-latest'
+        run: brew install imagemagick
+
+      - name: Install dependencies (Windows only)
+        if: matrix.os == 'windows-latest'
+        run: choco install imagemagick --yes
+
+      - name: Fix icons (ensure RGBA PNG)
+        run: |
+          magick src-tauri/icons/icon.png -define png:format=png32 src-tauri/icons/icon.png
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0" --locked
