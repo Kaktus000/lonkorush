@@ -43,35 +43,3 @@ jobs:
         with:
           name: lonkorush-client-${{ matrix.os }}
           path: src-tauri/target/release/bundle/
-
-  android:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Java & Android SDK
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          target: default
-          arch: x86_64
-          script: echo "Android SDK ready"
-
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2.0.0" --locked
-
-      - name: Init Android
-        run: cargo tauri android init
-
-      - name: Build Android Debug APK
-        run: cargo tauri android build
-
-      - name: Upload Android APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: lonkorush-client-android
-          path: src-tauri/gen/android/app/build/outputs/apk/
