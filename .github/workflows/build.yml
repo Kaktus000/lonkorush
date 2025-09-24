@@ -56,22 +56,29 @@ jobs:
         run: |
           mkdir -p src-tauri/icons
 
+          # Pick correct ImageMagick command (magick or convert)
+          if command -v magick >/dev/null 2>&1; then
+            IM_CMD="magick"
+          else
+            IM_CMD="convert"
+          fi
+
           # Ensure base icon is valid PNG32, resize to 1024x1024
-          magick src-tauri/icons/icon.png -resize 1024x1024 -define png:format=png32 src-tauri/icons/icon.png
+          $IM_CMD src-tauri/icons/icon.png -resize 1024x1024 -define png:format=png32 src-tauri/icons/icon.png
 
           # Linux PNGs in all common sizes
           for size in 16 32 48 64 128 256 512 1024; do
-            magick src-tauri/icons/icon.png -resize ${size}x${size} -define png:format=png32 src-tauri/icons/icon-${size}.png
+            $IM_CMD src-tauri/icons/icon.png -resize ${size}x${size} -define png:format=png32 src-tauri/icons/icon-${size}.png
           done
 
           # Windows ICO
-          magick src-tauri/icons/icon-16.png src-tauri/icons/icon-32.png src-tauri/icons/icon-48.png src-tauri/icons/icon-64.png src-tauri/icons/icon-128.png src-tauri/icons/icon-256.png src-tauri/icons/icon.ico
+          $IM_CMD src-tauri/icons/icon-16.png src-tauri/icons/icon-32.png src-tauri/icons/icon-48.png src-tauri/icons/icon-64.png src-tauri/icons/icon-128.png src-tauri/icons/icon-256.png src-tauri/icons/icon.ico
 
           # macOS ICNS (iconutil is built-in on macOS runners)
           mkdir -p src-tauri/icons/macos.iconset
           for size in 16 32 128 256 512 1024; do
-            magick src-tauri/icons/icon.png -resize ${size}x${size} src-tauri/icons/macos.iconset/icon_${size}x${size}.png
-            magick src-tauri/icons/icon.png -resize $((size*2))x$((size*2)) src-tauri/icons/macos.iconset/icon_${size}x${size}@2x.png
+            $IM_CMD src-tauri/icons/icon.png -resize ${size}x${size} src-tauri/icons/macos.iconset/icon_${size}x${size}.png
+            $IM_CMD src-tauri/icons/icon.png -resize $((size*2))x$((size*2)) src-tauri/icons/macos.iconset/icon_${size}x${size}@2x.png
           done
           if [ "${{ matrix.os }}" = "macos-latest" ]; then
             iconutil -c icns src-tauri/icons/macos.iconset -o src-tauri/icons/icon.icns
