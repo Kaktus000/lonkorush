@@ -1,13 +1,14 @@
-name: publish
+name: build
 
 on:
   push:
     branches:
-      - release
+      - "**" # läuft bei jedem Commit auf allen Branches
+  pull_request:
   workflow_dispatch:
 
 jobs:
-  publish-tauri:
+  build-tauri:
     permissions:
       contents: write
     strategy:
@@ -15,18 +16,19 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
-            args: '--target aarch64-apple-darwin'   # Apple Silicon
+            args: '--target aarch64-apple-darwin'
           - platform: macos-latest
-            args: '--target x86_64-apple-darwin'   # Intel Macs
+            args: '--target x86_64-apple-darwin'
           - platform: ubuntu-22.04
-            args: ''                               # Linux
+            args: ''
           - platform: windows-latest
-            args: ''                               # Windows
+            args: ''
 
     runs-on: ${{ matrix.platform }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
@@ -43,7 +45,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
-          cache: 'yarn' # set to npm/pnpm if needed
+          cache: 'npm' # hier auf npm, damit kein yarn.lock Fehler kommt
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -56,7 +58,7 @@ jobs:
           workspaces: './src-tauri -> target'
 
       - name: Install frontend dependencies
-        run: yarn install # change if you use npm/pnpm/bun
+        run: npm install
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -66,6 +68,6 @@ jobs:
           tagName: app-v__VERSION__
           releaseName: 'App v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
