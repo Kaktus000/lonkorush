@@ -29,9 +29,7 @@
       "msi",
       "nsis",
       "dmg",
-      "app",
-      "apk",
-      "ios"
+      "app"
     ],
     "icon": [
       "icons/icon.png"
