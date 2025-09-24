@@ -22,7 +22,9 @@ jobs:
       - name: Setup Rust (stable)
         uses: dtolnay/rust-toolchain@stable
 
-      # ---------- Install system deps ----------
+      - name: Install cargo-tauri
+        run: cargo install cargo-tauri --version "^2.0.0" --locked
+
       - name: Install dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -36,7 +38,7 @@ jobs:
             imagemagick \
             icnsutils || true
 
-          # WebKit fallback: try 4.1, otherwise 4.0 (some runners differ)
+          # WebKit fallback: try 4.1, otherwise 4.0
           if ! sudo apt-get install -y libwebkit2gtk-4.1-dev; then
             sudo apt-get install -y libwebkit2gtk-4.0-dev || true
           fi
@@ -56,18 +58,15 @@ jobs:
           refreshenv || true
         shell: pwsh
 
-      # ---------- Fix / convert icons ----------
       - name: Fix icons (Linux / macOS)
         if: matrix.os != 'windows-latest'
         run: |
-          # ensure RGBA PNG32
           if command -v magick >/dev/null 2>&1; then
             magick src-tauri/icons/icon.png -define png:format=png32 src-tauri/icons/icon.png
           elif command -v convert >/dev/null 2>&1; then
             convert src-tauri/icons/icon.png -define png:format=png32 src-tauri/icons/icon.png
           fi
 
-          # macOS: build .icns from iconset (iconutil exists on mac runners)
           if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
             rm -rf src-tauri/icons/mac.iconset || true
             mkdir -p src-tauri/icons/mac.iconset
@@ -81,65 +80,22 @@ jobs:
       - name: Fix icons (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          # ensure RGBA PNG32
           if (Get-Command magick -ErrorAction SilentlyContinue) {
             magick src-tauri/icons/icon.png -define png:format=png32 src-tauri/icons/icon.png
           } elseif (Get-Command convert -ErrorAction SilentlyContinue) {
             & convert src-tauri/icons/icon.png -define png:format=png32 src-tauri/icons/icon.png
-          } else {
-            Write-Error "ImageMagick not found"
-            exit 1
           }
-
-          # build multi-size ico
           magick src-tauri/icons/icon.png -define icon:auto-resize=256,128,64,48,32,16 src-tauri/icons/icon.ico
         shell: pwsh
 
-      # ---------- Optional frontend build if present ----------
-      - name: Build frontend if present (Linux/macOS)
-        if: matrix.os != 'windows-latest'
-        run: |
-          if [ -f frontend/package.json ]; then
-            cd frontend
-            npm ci
-            npm run build
-            cd -
-          elif [ -f src/package.json ]; then
-            cd src
-            npm ci
-            npm run build
-            cd -
-          fi
-        shell: bash
-
-      - name: Build frontend if present (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          if (Test-Path frontend\package.json) {
-            Push-Location frontend
-            npm ci
-            npm run build
-            Pop-Location
-          } elseif (Test-Path src\package.json) {
-            Push-Location src
-            npm ci
-            npm run build
-            Pop-Location
-          }
-        shell: pwsh
-
-      # ---------- Build Tauri (detect tauri dir automatically) ----------
       - name: Build Tauri app (Linux / macOS)
         if: matrix.os != 'windows-latest'
         run: |
-          # detect tauri dir (supports lonkorush-client/src-tauri or src-tauri)
           if [ -d "lonkorush-client/src-tauri" ]; then
             cd lonkorush-client/src-tauri
           elif [ -d "src-tauri" ]; then
             cd src-tauri
           fi
-
-          # build release bundles
           cargo tauri build
         shell: bash
 
@@ -154,7 +110,6 @@ jobs:
           cargo tauri build
         shell: pwsh
 
-      # ---------- Upload artifacts ----------
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
