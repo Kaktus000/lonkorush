@@ -1,55 +1,51 @@
-name: build-tauri
+name: publish
 
 on:
   push:
     branches:
-      - main
-  pull_request:
+      - release
+  workflow_dispatch:
 
 jobs:
-  build:
+  publish-tauri:
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: ubuntu-22.04
-            args: ""
-          - platform: windows-latest
-            args: ""
           - platform: macos-latest
-            args: ""
+            args: '--target aarch64-apple-darwin'   # Apple Silicon
+          - platform: macos-latest
+            args: '--target x86_64-apple-darwin'   # Intel Macs
+          - platform: ubuntu-22.04
+            args: ''                               # Linux
+          - platform: windows-latest
+            args: ''                               # Windows
 
     runs-on: ${{ matrix.platform }}
 
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # Linux dependencies
-      - name: Install dependencies (Linux only)
+      - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            libwebkit2gtk-4.0-dev \
             libwebkit2gtk-4.1-dev \
-            libayatana-appindicator3-dev \
+            libappindicator3-dev \
             librsvg2-dev \
-            patchelf \
-            build-essential \
-            curl \
-            wget \
-            file \
-            pkg-config
+            patchelf
 
-      # Node (for frontend, adjust if using npm/pnpm instead of yarn)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
-          cache: 'yarn'
+          cache: 'yarn' # set to npm/pnpm if needed
 
-      # Rust toolchain
-      - name: Setup Rust
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
@@ -59,21 +55,17 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
-      # Install frontend deps (falls du src hast)
-      - name: Install frontend deps
-        run: yarn install
+      - name: Install frontend dependencies
+        run: yarn install # change if you use npm/pnpm/bun
 
-      # Build mit Tauri Action
-      - name: Build Tauri App
+      - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tagName: app-v__VERSION__
+          releaseName: 'App v__VERSION__'
+          releaseBody: 'See the assets to download this version and install.'
+          releaseDraft: true
+          prerelease: false
           args: ${{ matrix.args }}
-
-      # Upload artifacts (statt Release)
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: lonkorush-${{ matrix.platform }}
-          path: src-tauri/target/release/bundle/
