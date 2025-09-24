@@ -37,7 +37,7 @@ jobs:
 
       - name: Install system dependencies (macOS only)
         if: matrix.os == 'macos-latest'
-        run: brew install imagemagick icnsutils
+        run: brew install imagemagick
 
       - name: Install system dependencies (Windows only)
         if: matrix.os == 'windows-latest'
@@ -67,13 +67,15 @@ jobs:
           # Windows ICO
           magick src-tauri/icons/icon-16.png src-tauri/icons/icon-32.png src-tauri/icons/icon-48.png src-tauri/icons/icon-64.png src-tauri/icons/icon-128.png src-tauri/icons/icon-256.png src-tauri/icons/icon.ico
 
-          # macOS ICNS
+          # macOS ICNS (iconutil is built-in on macOS runners)
           mkdir -p src-tauri/icons/macos.iconset
           for size in 16 32 128 256 512 1024; do
             magick src-tauri/icons/icon.png -resize ${size}x${size} src-tauri/icons/macos.iconset/icon_${size}x${size}.png
             magick src-tauri/icons/icon.png -resize $((size*2))x$((size*2)) src-tauri/icons/macos.iconset/icon_${size}x${size}@2x.png
           done
-          iconutil -c icns src-tauri/icons/macos.iconset -o src-tauri/icons/icon.icns
+          if [ "${{ matrix.os }}" = "macos-latest" ]; then
+            iconutil -c icns src-tauri/icons/macos.iconset -o src-tauri/icons/icon.icns
+          fi
 
       - name: Build Tauri App
         run: cargo tauri build
