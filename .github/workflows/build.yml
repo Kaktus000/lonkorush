@@ -1,119 +1,53 @@
-name: Build and Release
+name: Build Tauri App
 
 on:
   push:
-    branches:
-      - "**"
-    tags:
-      - "v*"
-  workflow_dispatch: {}
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   build:
     strategy:
-      fail-fast: false
       matrix:
-        include:
-          - platform: macos-latest
-            target: aarch64-apple-darwin
-            output_path: ./src-tauri/target/aarch64-apple-darwin/release/bundle
-            asset_name_base: MyApp-MacOS-arm64
-          - platform: macos-latest
-            target: x86_64-apple-darwin
-            output_path: ./src-tauri/target/x86_64-apple-darwin/release/bundle
-            asset_name_base: MyApp-MacOS-x86_64
-          - platform: ubuntu-22.04
-            target: ""
-            output_path: ./src-tauri/target/release/bundle
-            asset_name_base: MyApp-Linux
-          - platform: windows-latest
-            target: ""
-            output_path: ./src-tauri/target/release/bundle
-            asset_name_base: MyApp-Windows
-
-    runs-on: ${{ matrix.platform }}
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install dependencies (Linux only)
-        if: matrix.platform == 'ubuntu-22.04'
+      - name: Install system dependencies (Linux only)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
             librsvg2-dev \
-            patchelf
+            pkg-config
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
         with:
-          node-version: lts/*
-          cache: yarn
+          toolchain: stable
+          override: true
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
 
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './src-tauri -> target'
+      - name: Build Tauri App
+        run: cargo tauri build
+        working-directory: src-tauri
 
-      - name: Clean workspace
-        run: git clean -fdx
-
-      - name: Install frontend deps
-        run: yarn install --frozen-lockfile
-
-      - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        with:
-          args: ${{ matrix.target != '' && format('--target {0}', matrix.target) || '' }}
-          packageManager: yarn
-
-      - name: Upload Artifacts
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: artifact-${{ matrix.platform }}-${{ matrix.target || 'default' }}
-          path: ${{ matrix.output_path }}/**
-          if-no-files-found: error
-
-  release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: List artifacts
-        run: ls -R artifacts
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          body: |
-            Automated release for tag ${{ github.ref_name }}
-          draft: false
-          prerelease: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
-          files: artifacts/**/*
+          name: lonkorush-client-${{ matrix.os }}
+          path: src-tauri/target/release/bundle/
