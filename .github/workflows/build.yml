@@ -41,8 +41,6 @@ jobs:
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
-      - name: Generate Tauri Icons
-        run: cargot tauri icon src-tauri/icons/icon.png -o src-tauri/icons
       - name: Build Tauri App
         run: cargo tauri build
         working-directory: src-tauri
