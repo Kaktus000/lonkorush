@@ -13,7 +13,7 @@
         "title": "lonkorush-client",
         "width": 800,
         "height": 600,
-        "url": "http://185.248.140.115:17298/"
+        "url": "http://localhost"
       }
     ],
     "security": {
